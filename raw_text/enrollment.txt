@@ -1,0 +1,1 @@
+Page 1: Health Plan Enrollment Form (Synthetic sample form for training purposes only) Member Name: Member ID: Date of Birth: Plan Selected: Effective Date: Address: Phone Number: Email: Dependent Coverage: | | Yes | | Mo Signature: Date: Jordan A. Sample M2099 01/15/1990 Gold PPO 500 01/01/2024 123 Test Lane, Sample City, TX 75001 (555) 123-4567 jordan.sample@example.com
