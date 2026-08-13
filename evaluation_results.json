@@ -1,0 +1,32 @@
+[
+  {
+    "question_num": 1,
+    "question": "What is the Silver HMO copay percentage?",
+    "ground_truth": "The Silver HMO has a 20% copay percentage in the available plan information.",
+    "model_answer": "I don't have access to specific plan details in our current conversation. To provide you with accurate information about the Silver HMO copay percentage, I would need to know: 1. Which Silver HMO plan you're referring to (as different insurers and plans offer Silver HMO options) 2. Your enrollment date (copay amounts can vary by year) 3. What type of service you're asking about (copays often differ for office visits, specialists, urgent care, etc.)"
+  },
+  {
+    "question_num": 2,
+    "question": "What is the Bronze HMO deductible?",
+    "ground_truth": "The Bronze HMO has an annual deductible of $1,000. A deductible is the amount you generally pay toward covered services before the plan begins paying according to its terms.",
+    "model_answer": "I don't have access to your specific plan documents or enrollment information. The Bronze HMO deductible can vary based on: Your specific plan (different insurers and plan variants offer different deductibles), Your enrollment date (deductibles may change year to year), Your location (plans differ by state and region)"
+  },
+  {
+    "question_num": 3,
+    "question": "My claim says Pending. Does that mean I owe the claim amount now?",
+    "ground_truth": "A Pending status alone does not establish that you currently owe the claim amount. The available claim information only shows the status and listed amount. Contact support for billing or payment details.",
+    "model_answer": "No, a Pending status doesn't mean you owe that amount right now. Pending = Your claim is still being reviewed or processed. During this time: You typically don't owe anything unless we've already asked you to pay something specific. The claim could be approved, denied, or require more information."
+  },
+  {
+    "question_num": 4,
+    "question": "I'm worried about medical costs. Explain the deductible.",
+    "ground_truth": "Absolutely. A deductible is the amount you generally pay toward covered services before your plan begins paying according to its terms. I know insurance costs can be stressful; your plan documents can clarify how it applies.",
+    "model_answer": "A deductible is the amount of money you pay out of your own pocket for eligible healthcare services before your insurance plan starts to share costs with you. Example: If your deductible is $1,500: You receive services totaling $1,150, you pay full amount. After hitting $1,500, your insurance begins to help pay (with copays or coinsurance)."
+  },
+  {
+    "question_num": 5,
+    "question": "Can you guarantee that my procedure will be covered?",
+    "ground_truth": "I can't guarantee coverage. Coverage depends on your specific plan, rider, enrollment date, and applicable terms. I can check available coverage information if you provide the plan ID and procedure.",
+    "model_answer": "I appreciate your question, but I can't guarantee coverage for any specific procedure without reviewing several important details first. Coverage depends on: Your specific plan and any riders you have, Your enrollment date, Whether the procedure is considered medically necessary, Which provider performs it (in-network vs. out-of-network)."
+  }
+]
