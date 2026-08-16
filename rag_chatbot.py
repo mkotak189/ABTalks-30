@@ -1,6 +1,7 @@
 import os
-import openai
+import json
 from dotenv import load_dotenv
+import openai
 from retrieval_engine import retrieve
 
 load_dotenv()
@@ -12,11 +13,11 @@ client = openai.OpenAI(
 
 MODEL = os.getenv("OLLAMA_MODEL", "llama3.1")
 
+# ============================================================
+# SYSTEM PROMPT (from Day 12 Variant E)
+# ============================================================
 
-def generate_answer(question: str, context: list[str], stream: bool = False):
-    context_block = "\n".join(f"- {c}" for c in context) if context else "(no context retrieved)"
-
-    prompt = f"""You are a compassionate health insurance coverage assistant committed to accuracy and clarity.
+SYSTEM_PROMPT = """You are a compassionate health insurance coverage assistant committed to accuracy and clarity.
 
 Your responsibilities:
 1. Answer ONLY using information from the provided context
@@ -29,53 +30,101 @@ Before answering, briefly identify: (a) which plan is being asked about, (b) wha
 
 Important disclaimer: This is not medical advice. Coverage details may vary by your specific plan, rider, or enrollment date. For complex questions or exceptions, please contact support.
 
-Context: {context_block}
+If the question would benefit from calling a tool (e.g., to check specific claim status, plan details, or coverage), call the appropriate tool. Otherwise, answer based on context alone."""
+
+# ============================================================
+# GENERATE ANSWER WITH CITATION TRACKING
+# ============================================================
+
+def generate_answer(question: str, context: str, stream: bool = False):
+    """
+    Generate answer with streaming support and citation tracking.
+    """
+    # Track chunk IDs used (from context)
+    chunk_ids_used = []
+    # Extract chunk IDs if they're embedded in context
+    # For now, return empty list (can enhance later)
+    
+    prompt = f"""{SYSTEM_PROMPT}
+
+Context: {context}
 
 Question: {question}"""
-
-    messages = [{"role": "user", "content": prompt}]
-
+    
     if stream:
-        full_text = ""
+        # Streaming mode
         response = client.chat.completions.create(
             model=MODEL,
-            messages=messages,
+            messages=[{"role": "user", "content": prompt}],
             stream=True,
+            timeout=120
         )
+        
+        full_text = ""
         for chunk in response:
-            delta = chunk.choices[0].delta.content
-            if delta:
-                print(delta, end="", flush=True)
-                full_text += delta
-        print()
-        return full_text
+            if chunk.choices[0].delta.content:
+                full_text += chunk.choices[0].delta.content
+                yield chunk.choices[0].delta.content
+        
+        return {
+            "answer": full_text,
+            "chunk_ids": chunk_ids_used,
+            "classification": "unknown",
+        }
     else:
+        # Non-streaming mode
         response = client.chat.completions.create(
             model=MODEL,
-            messages=messages,
+            messages=[{"role": "user", "content": prompt}],
             stream=False,
+            timeout=120
         )
-        return response.choices[0].message.content
+        
+        answer = response.choices[0].message.content
+        return {
+            "answer": answer,
+            "chunk_ids": chunk_ids_used,
+            "classification": "unknown",
+        }
 
+# ============================================================
+# RETRIEVE AND ANSWER ORCHESTRATION
+# ============================================================
 
 def retrieve_and_answer(question: str, stream: bool = False) -> dict:
+    """
+    Full pipeline: retrieve context → generate answer with citations.
+    """
+    # Step 1: Get retrieval context
     retrieval_result = retrieve(question)
-    context = retrieval_result["merged_context"]
-    answer = generate_answer(question, context, stream=stream)
+    context = "\n".join(f"- {c}" for c in retrieval_result["merged_context"]) if retrieval_result["merged_context"] else "(no context)"
+    
+    # Step 2: Generate answer with streaming support
+    if stream:
+        # For streaming, we need to return a generator
+        result = generate_answer(question, context, stream=True)
+        return {
+            "question": question,
+            "classification": retrieval_result.get("classification", "unknown"),
+            "answer_stream": result,  # Generator
+        }
+    else:
+        # Non-streaming
+        result = generate_answer(question, context, stream=False)
+        return {
+            "question": question,
+            "classification": result.get("classification", "unknown"),
+            "answer": result["answer"],
+            "chunk_ids": result["chunk_ids"],
+        }
 
-    return {
-        "question": question,
-        "classification": retrieval_result["classification"],
-        "context": context,
-        "answer": answer,
-    }
-
+# ============================================================
+# TEST HARNESS (optional)
+# ============================================================
 
 if __name__ == "__main__":
-    # Step 7: streaming smoke test
-    print("=== STREAMING SMOKE TEST ===\n")
-    result = retrieve_and_answer(
-        "What's the deductible on the Gold PPO plan?",
-        stream=True
-    )
-    print(f"\nClassification: {result['classification']}")
+    test_question = "What's the monthly premium for the Gold PPO plan?"
+    result = retrieve_and_answer(test_question, stream=False)
+    print(f"Q: {test_question}")
+    print(f"A: {result['answer']}")
+    print(f"Citations: {result['chunk_ids']}")

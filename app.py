@@ -3,7 +3,9 @@ import requests
 import uuid
 import pandas as pd
 import sqlite3
+import json
 from datetime import datetime
+from response_cards import ClaimStatusCard, CoverageSummaryCard
 
 # ============================================================
 # PAGE CONFIG
@@ -87,7 +89,14 @@ with st.sidebar:
 
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
-        st.write(message["content"])
+        st.markdown(message["content"])
+        
+        # Display citations if available
+        if message.get("citations"):
+            with st.expander("📋 Policy Sources"):
+                st.caption(f"This answer references {len(message['citations'])} policy clause(s)")
+                for i, chunk_id in enumerate(message["citations"], 1):
+                    st.caption(f"{i}. Chunk ID: {chunk_id}")
 
 # ============================================================
 # CHAT INPUT & BACKEND CALL
@@ -99,12 +108,13 @@ if user_input:
     # Add user message to history
     st.session_state.messages.append({
         "role": "user",
-        "content": user_input
+        "content": user_input,
+        "citations": []
     })
     
     # Display user message
     with st.chat_message("user"):
-        st.write(user_input)
+        st.markdown(user_input)
     
     # Stream response from backend
     with st.chat_message("assistant"):
@@ -116,6 +126,7 @@ if user_input:
                 st.spinner("Streaming response...")
             
             full_response = ""
+            chunk_ids = []
             timing_ms = 0
             
             response = requests.post(
@@ -143,11 +154,20 @@ if user_input:
                             if data["type"] == "token":
                                 # Append token to response
                                 full_response += data["content"]
-                                message_placeholder.write(full_response)
+                                message_placeholder.markdown(full_response)
                             
                             elif data["type"] == "done":
                                 # Stream complete
-                                timing_ms = data["timing_ms"]
+                                chunk_ids = data.get("chunk_ids", [])
+                                timing_ms = data.get("timing_ms", 0)
+                                
+                                # Render citations
+                                if chunk_ids:
+                                    with st.expander("📋 Policy Sources"):
+                                        st.caption(f"This answer references {len(chunk_ids)} policy clause(s)")
+                                        for i, chunk_id in enumerate(chunk_ids, 1):
+                                            st.caption(f"{i}. Chunk ID: {chunk_id}")
+                                
                                 status_placeholder.caption(f"⏱️ {timing_ms:.1f}ms")
                             
                             elif data["type"] == "error":
@@ -161,15 +181,17 @@ if user_input:
             if full_response:
                 st.session_state.messages.append({
                     "role": "assistant",
-                    "content": full_response
+                    "content": full_response,
+                    "citations": chunk_ids
                 })
         
         except requests.exceptions.ConnectionError:
-            st.error("❌ Cannot connect to backend.")
+            st.error("❌ Cannot connect to backend. Make sure uvicorn is running on http://localhost:8000")
         except requests.exceptions.Timeout:
-            st.error("⏱️ Request timed out. The model may be loading.")
+            st.error("⏱️ Backend request timed out. The model may be loading.")
         except Exception as e:
             st.error(f"Error: {str(e)}")
+
 # ============================================================
 # FOOTER
 # ============================================================
