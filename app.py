@@ -106,46 +106,70 @@ if user_input:
     with st.chat_message("user"):
         st.write(user_input)
     
-    # Call backend
-    with st.spinner("Thinking..."):
+    # Stream response from backend
+    with st.chat_message("assistant"):
+        message_placeholder = st.empty()
+        status_placeholder = st.empty()
+        
         try:
+            with status_placeholder.container():
+                st.spinner("Streaming response...")
+            
+            full_response = ""
+            timing_ms = 0
+            
             response = requests.post(
                 f"{BACKEND_URL}/chat",
                 json={
                     "session_id": st.session_state.session_id,
-                    "member_id": "M001",  # Static for demo; can be dynamic
+                    "member_id": "M001",
                     "message": user_input
                 },
-                timeout=60
+                stream=True,
+                timeout=120
             )
             
-            if response.status_code == 200:
-                data = response.json()
-                st.write(f"DEBUG: {data}")  # ← Add this line temporarily
-                assistant_response = data.get("response", "Error: No response from backend")
-                timing = data.get("timing_ms", 0)
-                
-                # Add assistant message to history
+            response.raise_for_status()
+            
+            # Process SSE stream
+            for line in response.iter_lines():
+                if line:
+                    try:
+                        # Parse SSE format: "data: {...}"
+                        if line.startswith("data: "):
+                            json_str = line[6:]  # Remove "data: " prefix
+                            data = json.loads(json_str)
+                            
+                            if data["type"] == "token":
+                                # Append token to response
+                                full_response += data["content"]
+                                message_placeholder.write(full_response)
+                            
+                            elif data["type"] == "done":
+                                # Stream complete
+                                timing_ms = data["timing_ms"]
+                                status_placeholder.caption(f"⏱️ {timing_ms:.1f}ms")
+                            
+                            elif data["type"] == "error":
+                                st.error(f"Error: {data['message']}")
+                                break
+                    
+                    except json.JSONDecodeError:
+                        continue
+            
+            # Add assistant message to history
+            if full_response:
                 st.session_state.messages.append({
                     "role": "assistant",
-                    "content": assistant_response
+                    "content": full_response
                 })
-                
-                # Display assistant message
-                with st.chat_message("assistant"):
-                    st.write(assistant_response)
-                    st.caption(f"⏱️ {timing:.1f}ms")
-            else:
-                error_msg = response.json().get("error", "Unknown error")
-                st.error(f"Backend error: {error_msg}")
         
         except requests.exceptions.ConnectionError:
-            st.error("❌ Cannot connect to backend. Make sure uvicorn is running on http://localhost:8000")
+            st.error("❌ Cannot connect to backend.")
         except requests.exceptions.Timeout:
-            st.error("⏱️ Backend request timed out")
+            st.error("⏱️ Request timed out. The model may be loading.")
         except Exception as e:
             st.error(f"Error: {str(e)}")
-
 # ============================================================
 # FOOTER
 # ============================================================

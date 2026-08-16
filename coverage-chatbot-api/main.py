@@ -4,6 +4,10 @@ from pydantic import BaseModel
 import time
 import sys
 import os
+
+# Set working directory to repo root for database access
+os.chdir(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 from rag_chatbot import retrieve_and_answer
 
@@ -57,58 +61,61 @@ app.add_middleware(
 async def health():
     return {"status": "ok"}
 
-import os
+from fastapi.responses import StreamingResponse
+import json
 
-# Set working directory to repo root for database access
-os.chdir(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 @app.post("/chat")
 async def chat(request: ChatMessage):
+    """
+    Stream chat responses token-by-token using Server-Sent Events (SSE).
+    """
     start_time = time.time()
     
-    try:
-        # Initialize session if new
-        if request.session_id not in sessions:
-            sessions[request.session_id] = []
-        
-        # Call retrieve_and_answer directly (no import needed)
-        result = retrieve_and_answer(request.message, stream=False)
-        
-        # Rest of the code...
-        
-        # Store user turn
-        user_turn = ConversationTurn(
-            role="user",
-            content=request.message,
-            timestamp=datetime.now().isoformat()
-        )
-        sessions[request.session_id].append(user_turn)
-        
-        # Store assistant turn
-        assistant_turn = ConversationTurn(
-            role="assistant",
-            content=result["answer"],
-            timestamp=datetime.now().isoformat()
-        )
-        sessions[request.session_id].append(assistant_turn)
-        
-        # Calculate timing
-        timing_ms = (time.time() - start_time) * 1000
-        
-        return ChatResponse(
-            session_id=request.session_id,
-            response=result["answer"],
-            timing_ms=timing_ms
-        )
+    # Initialize session if new
+    if request.session_id not in sessions:
+        sessions[request.session_id] = []
     
-    except Exception as e:
-        timing_ms = (time.time() - start_time) * 1000
-        return {
-            "error": str(e),
-            "session_id": request.session_id,
-            "timing_ms": timing_ms,
-            "status": 500
-        }
-
+    # Store user turn immediately
+    user_turn = ConversationTurn(
+        role="user",
+        content=request.message,
+        timestamp=datetime.now().isoformat()
+    )
+    sessions[request.session_id].append(user_turn)
+    
+    async def generate():
+        """Generator function that yields SSE-formatted chunks."""
+        try:
+            # Call retrieve_and_answer with stream=True
+            result = retrieve_and_answer(request.message, stream=True)
+            
+            # Yield metadata first
+            yield f"data: {json.dumps({'type': 'metadata', 'classification': result.get('classification', 'unknown')})}\n\n"
+            
+            # Stream the answer token by token
+            full_answer = ""
+            for token in result.get("answer_stream", []):
+                full_answer += token
+                # Yield each token as SSE data
+                yield f"data: {json.dumps({'type': 'token', 'content': token})}\n\n"
+            
+            # Store assistant turn after streaming complete
+            assistant_turn = ConversationTurn(
+                role="assistant",
+                content=full_answer,
+                timestamp=datetime.now().isoformat()
+            )
+            sessions[request.session_id].append(assistant_turn)
+            
+            # Yield completion signal
+            timing_ms = (time.time() - start_time) * 1000
+            yield f"data: {json.dumps({'type': 'done', 'timing_ms': timing_ms})}\n\n"
+        
+        except Exception as e:
+            # Yield error as SSE
+            yield f"data: {json.dumps({'type': 'error', 'message': str(e)})}\n\n"
+    
+    return StreamingResponse(generate(), media_type="text/event-stream")
 
 @app.get("/history/{session_id}")
 async def get_history(session_id: str):
