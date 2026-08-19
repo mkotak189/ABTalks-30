@@ -1,0 +1,93 @@
+# Create this file by running the following Python snippet:
+
+import json
+
+eval_set = [
+    {
+        "question": "What is the annual deductible for the Gold PPO plan?",
+        "ground_truth": "The Gold PPO plan has an annual deductible of $1,000."
+    },
+    {
+        "question": "What is the annual deductible for the Silver HMO plan?",
+        "ground_truth": "The Silver HMO plan has an annual deductible of $500."
+    },
+    {
+        "question": "What is the annual deductible for the Bronze HMO plan?",
+        "ground_truth": "The Bronze HMO plan has an annual deductible of $1,500."
+    },
+    {
+        "question": "What is the copay percentage for the Gold PPO plan?",
+        "ground_truth": "The Gold PPO plan has a 15% copay percentage."
+    },
+    {
+        "question": "What is the copay percentage for the Silver HMO plan?",
+        "ground_truth": "The Silver HMO plan has a 20% copay percentage."
+    },
+    {
+        "question": "What is the monthly premium for the Gold PPO plan?",
+        "ground_truth": "The Gold PPO plan has a monthly premium of $500."
+    },
+    {
+        "question": "What is the monthly premium for the Silver HMO plan?",
+        "ground_truth": "The Silver HMO plan has a monthly premium of $350."
+    },
+    {
+        "question": "What is the monthly premium for the Bronze HMO plan?",
+        "ground_truth": "The Bronze HMO plan has a monthly premium of $250."
+    },
+    {
+        "question": "Are cosmetic procedures covered by any plan?",
+        "ground_truth": "No, cosmetic surgery is an excluded service under all plans."
+    },
+    {
+        "question": "Is dental care covered by the health insurance plans?",
+        "ground_truth": "No, dental care is an excluded service under all plans."
+    },
+    {
+        "question": "What is the status of claim C1001?",
+        "ground_truth": "Claim C1001 is currently Pending for lab work with an amount of $250."
+    },
+    {
+        "question": "How do I file a health insurance claim?",
+        "ground_truth": "To file a claim: 1) Contact member services, 2) Submit claim form with supporting documents (receipts, medical records), 3) Submit online, by mail, or fax, 4) Track your claim status online."
+    },
+    {
+        "question": "What is the difference between the Gold PPO and Silver HMO plans?",
+        "ground_truth": "Gold PPO has a $1,000 deductible and 15% copay with $500/month premium. Silver HMO has a $500 deductible and 20% copay with $350/month premium. Gold PPO offers more flexibility; Silver HMO is more affordable."
+    },
+    {
+        "question": "Are weight loss programs covered?",
+        "ground_truth": "No, weight loss programs are an excluded service under all plans."
+    },
+    {
+        "question": "Is long-term care covered?",
+        "ground_truth": "No, long-term care is an excluded service under all plans."
+    },
+    {
+        "question": "What happens after I meet my deductible?",
+        "ground_truth": "After you meet your annual deductible, you pay coinsurance (a percentage of eligible charges) and the plan covers the rest until you reach your out-of-pocket maximum."
+    },
+    {
+        "question": "Which plan has the lowest deductible?",
+        "ground_truth": "The Silver HMO plan has the lowest deductible at $500."
+    },
+    {
+        "question": "Which plan has the lowest monthly premium?",
+        "ground_truth": "The Bronze HMO plan has the lowest monthly premium at $250."
+    },
+    {
+        "question": "Can I see any doctor with my plan?",
+        "ground_truth": "HMO plans (Silver and Bronze) require using in-network providers. PPO plans (Gold) offer more flexibility to see any provider, though in-network providers cost less."
+    },
+    {
+        "question": "What is the out-of-pocket maximum for the plans?",
+        "ground_truth": "The out-of-pocket maximum is the most you'll pay in a year for covered services. After you reach this, the plan covers 100% of eligible charges. Specific amounts vary by plan."
+    }
+]
+
+# Write to JSONL file
+with open("ragas_eval_set.jsonl", "w") as f:
+    for item in eval_set:
+        f.write(json.dumps(item) + "\n")
+
+print("✅ Created ragas_eval_set.jsonl with 20 question/answer pairs")
