@@ -1,0 +1,76 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: coverage-chatbot-frontend
+  namespace: default
+  labels:
+    app: coverage-chatbot
+    component: frontend
+spec:
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: coverage-chatbot
+      component: frontend
+  template:
+    metadata:
+      labels:
+        app: coverage-chatbot
+        component: frontend
+    spec:
+      containers:
+      - name: frontend
+        image: coverage-chatbot-frontend:latest
+        imagePullPolicy: Never
+        ports:
+        - containerPort: 8501
+          name: http
+        
+        # Environment variables from Secret
+        envFrom:
+        - secretRef:
+            name: chatbot-secrets
+        
+        # Additional environment variables
+        env:
+        - name: PYTHONUNBUFFERED
+          value: "1"
+        - name: BACKEND_URL
+          value: "http://coverage-chatbot-backend:8000"
+        
+        # Readiness probe
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 8501
+          initialDelaySeconds: 15
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        
+        # Liveness probe
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 8501
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        
+        # Resource requests and limits
+        resources:
+          requests:
+            cpu: 100m
+            memory: 256Mi
+          limits:
+            cpu: 500m
+            memory: 512Mi
+      
+      # Restart policy
+      restartPolicy: Always

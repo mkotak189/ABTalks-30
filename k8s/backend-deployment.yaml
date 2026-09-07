@@ -1,0 +1,102 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: coverage-chatbot-backend
+  namespace: default
+  labels:
+    app: coverage-chatbot
+    component: backend
+spec:
+  replicas: 2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0  # Zero-downtime updates
+  selector:
+    matchLabels:
+      app: coverage-chatbot
+      component: backend
+  template:
+    metadata:
+      labels:
+        app: coverage-chatbot
+        component: backend
+    spec:
+      containers:
+      - name: backend
+        image: coverage-chatbot-backend:latest
+        imagePullPolicy: Never  # Use local Minikube images
+        ports:
+        - containerPort: 8000
+          name: http
+        
+        # Environment variables from Secret
+        envFrom:
+        - secretRef:
+            name: chatbot-secrets
+        
+        # Environment variables from ConfigMap or inline
+        env:
+        - name: PYTHONUNBUFFERED
+          value: "1"
+        - name: OLLAMA_BASE_URL
+          value: "http://ollama:11434"
+        
+        # Readiness probe - checks if pod is ready to serve traffic
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        
+        # Liveness probe - checks if pod is still alive (restart if fails)
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        
+        # Resource requests and limits
+        resources:
+          requests:
+            cpu: 100m
+            memory: 256Mi
+          limits:
+            cpu: 500m
+            memory: 512Mi
+        
+        # Volume mounts for persistent data
+        volumeMounts:
+        - name: coverage-db
+          mountPath: /app/coverage.db
+          subPath: coverage.db
+        - name: chroma-data
+          mountPath: /app/chroma_data
+        - name: knowledge-base
+          mountPath: /app/knowledge_base.jsonl
+          subPath: knowledge_base.jsonl
+      
+      # Volumes - stored on host (Minikube local)
+      volumes:
+      - name: coverage-db
+        hostPath:
+          path: /tmp/chatbot-data/coverage.db
+          type: FileOrCreate
+      - name: chroma-data
+        hostPath:
+          path: /tmp/chatbot-data/chroma_data
+          type: DirectoryOrCreate
+      - name: knowledge-base
+        hostPath:
+          path: /tmp/chatbot-data/knowledge_base.jsonl
+          type: FileOrCreate
+      
+      # Restart policy
+      restartPolicy: Always
